@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CaféLink Phoenix — Drive + Classroom + Folders</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f5f3; --muted:#324a3a; --sage:#b5d3b0; --peach:#f9d7b5;
+  --card:#fffaf6; --shadow: rgba(46,75,46,0.06);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:"Poppins",system-ui,-apple-system; background:var(--bg); color:var(--muted);}
+.header{position:sticky;top:0;background:linear-gradient(180deg,#fff,#fffaf8);padding:12px 16px;display:flex;gap:12px;align-items:center;z-index:40;border-bottom:1px solid rgba(0,0,0,0.03)}
+.brand{display:flex;gap:12px;align-items:center}
+.gem{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#FFD89B,#F5A623);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;transform:rotate(10deg)}
+.title{font-weight:700}
+.searchbar{flex:1;display:flex;gap:8px;align-items:center;margin:0 12px}
+.input{flex:1;padding:10px 12px;border-radius:12px;border:1px solid rgba(0,0,0,0.06);background:white}
+.btn{background:var(--sage);border:0;color:white;padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+.btn.ghost{background:transparent;border:1px solid rgba(0,0,0,0.06);color:var(--muted)}
+.container{max-width:1200px;margin:20px auto;padding:0 16px}
+.navTabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tab{padding:8px 12px;border-radius:10px;background:var(--card);cursor:pointer;box-shadow:0 6px 16px var(--shadow)}
+.tab.active{outline:2px solid rgba(75,148,75,0.12)}
+.panel{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 12px 28px var(--shadow)}
+.layout{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-top:12px}
+.sidebar{display:flex;flex-direction:column;gap:12px}
+.sectionTitle{font-weight:700;margin-bottom:8px}
+.small{font-size:13px;color:rgba(46,75,46,0.7)}
+.controls{display:flex;gap:8px;align-items:center}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.card{background:white;border-radius:12px;padding:10px;box-shadow:0 8px 20px var(--shadow);transition:transform .12s}
+.card:hover{transform:translateY(-6px)}
+.card img{width:100%;height:130px;object-fit:cover;border-radius:8px}
+.meta{font-size:13px;color:rgba(46,75,46,0.8);margin-top:8px}
+.row{display:flex;gap:8px;align-items:center}
+.tag{background:var(--peach);padding:6px 8px;border-radius:8px;font-weight:600;color:var(--muted);margin-left:auto}
+.flexCol{display:flex;flex-direction:column;gap:8px}
+.footer{margin-top:22px;text-align:center;color:rgba(46,75,46,0.6);padding-bottom:40px}
+.modalRoot{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(8,8,8,0.35);z-index:120}
+.modal{background:white;border-radius:12px;padding:14px;max-width:920px;width:96%;max-height:86vh;overflow:auto}
+.form-row{display:flex;gap:8px;flex-wrap:wrap}
+.input-file{padding:8px}
+.listView .card{display:flex;gap:12px;align-items:center}
+.listView .card img{width:120px;height:80px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.recycled{border:2px dashed rgba(255,160,0,0.12)}
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr; }
+  .searchbar{margin:8px 0}
+}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="brand"><div class="gem">☕</div><div><div class="title">CaféLink Phoenix</div><div class="small">Drive · Classrooms · Folders · Phoenix (Trash)</div></div></div>
+
+  <div class="searchbar">
+    <input id="globalSearch" class="input" placeholder="Search everything — title, description, folder, classroom..." />
+    <button id="searchBtn" class="btn ghost">Search</button>
+    <button id="addBtn" class="btn">+ Upload</button>
+  </div>
+
+  <div class="row">
+    <button id="exportBtn" class="btn ghost">Export</button>
+    <button id="importBtn" class="btn ghost">Import</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none"/>
+  </div>
+</header>
+
+<main class="container">
+  <div class="navTabs">
+    <div class="tab active" data-tab="drive">Drive</div>
+    <div class="tab" data-tab="class">Classrooms</div>
+    <div class="tab" data-tab="folders">Folders</div>
+    <div class="tab" data-tab="phoenix">Phoenix (Trash)</div>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="panel">
+        <div class="sectionTitle">Quick Actions</div>
+        <div class="flexCol">
+          <button id="newFolderBtn" class="btn ghost">+ New Folder</button>
+          <button id="newClassBtn" class="btn ghost">+ New Classroom</button>
+          <label class="small">View:</label>
+          <div class="controls">
+            <select id="viewMode" class="input" style="max-width:120px"><option value="grid">Grid</option><option value="list">List</option></select>
+            <select id="typeFilter" class="input" style="max-width:140px"><option value="">All types</option><option value="image">Images</option><option value="video">Videos</option><option value="link">Links</option><option value="note">Notes</option></select>
+            <button id="clearAllBtn" class="btn ghost">Clear All</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="sectionTitle">Counters</div>
+        <div class="small">Items: <span id="countItems">0</span></div>
+        <div class="small">Folders: <span id="countFolders">0</span></div>
+        <div class="small">Classrooms: <span id="countClasses">0</span></div>
+      </div>
+
+      <div class="panel">
+        <div class="sectionTitle">Help</div>
+        <div class="small">• Press <strong>n</strong> to create new item quickly.<br>• Use Export to backup your workspace.</div>
+      </div>
+    </aside>
+
+    <section>
+      <!-- Drive area -->
+      <div id="drivePanel" class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>Drive</strong><div class="small">Upload files, preview, move to folders, and attach to classrooms.</div></div>
+          <div class="actions">
+            <button id="refreshBtn" class="btn ghost">Refresh</button>
+            <button id="toggleView" class="btn ghost">Toggle Grid/List</button>
+          </div>
+        </div>
+
+        <div id="itemsContainer" style="margin-top:12px" class="grid"></div>
+      </div>
+
+      <!-- Classrooms -->
+      <div id="classPanel" class="panel" style="margin-top:12px;display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>Classrooms</strong><div class="small">Create classroom spaces and assignments. Students submit files to assignments.</div></div>
+        </div>
+
+        <div id="classroomsList" style="margin-top:12px" class="grid"></div>
+      </div>
+
+      <!-- Folders -->
+      <div id="foldersPanel" class="panel" style="margin-top:12px;display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>Folders</strong><div class="small">Organize your items.</div></div>
+        </div>
+        <div id="foldersList" style="margin-top:12px" class="grid"></div>
+      </div>
+
+      <!-- Phoenix / Trash -->
+      <div id="phoenixPanel" class="panel recycled" style="margin-top:12px;display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>Phoenix (Trash)</strong><div class="small">Restore deleted items or remove permanently.</div></div>
+          <div><button id="emptyTrashBtn" class="btn ghost">Empty Trash</button></div>
+        </div>
+        <div id="trashList" style="margin-top:12px" class="grid"></div>
+      </div>
+
+    </section>
+  </div>
+  <div class="footer">© 2025 CaféLink Phoenix — Local only · Created by Christian</div>
+</main>
+
+<!-- modal -->
+<div id="modalRoot" class="modalRoot"></div>
+
+<script>
+/* ---------- IndexedDB simple helper ---------- */
+const DB_NAME = 'cafelink_phoenix_db_v1';
+const DB_VERSION = 1;
+let db;
+function openDB(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e)=>{
+      const d = e.target.result;
+      if(!d.objectStoreNames.contains('items')) d.createObjectStore('items', {keyPath:'id'});
+      if(!d.objectStoreNames.contains('folders')) d.createObjectStore('folders', {keyPath:'id'});
+      if(!d.objectStoreNames.contains('classes')) d.createObjectStore('classes', {keyPath:'id'});
+      if(!d.objectStoreNames.contains('trash')) d.createObjectStore('trash', {keyPath:'id'});
+    };
+    req.onsuccess = ()=>{ db = req.result; resolve(db); };
+    req.onerror = ()=> reject(req.error);
+  });
+}
+function idbPut(storeName, value){
+  return new Promise((res, rej)=>{
+    const tx = db.transaction(storeName, 'readwrite');
+    const s = tx.objectStore(storeName);
+    const r = s.put(value);
+    r.onsuccess = ()=> res(r.result);
+    r.onerror = ()=> rej(r.error);
+  });
+}
+function idbGetAll(storeName){
+  return new Promise((res, rej)=>{
+    const tx = db.transaction(storeName, 'readonly');
+    const s = tx.objectStore(storeName);
+    const r = s.getAll();
+    r.onsuccess = ()=> res(r.result);
+    r.onerror = ()=> rej(r.error);
+  });
+}
+function idbGet(storeName, key){
+  return new Promise((res, rej)=>{
+    const tx = db.transaction(storeName, 'readonly');
+    const s = tx.objectStore(storeName);
+    const r = s.get(key);
+    r.onsuccess = ()=> res(r.result);
+    r.onerror = ()=> rej(r.error);
+  });
+}
+function idbDelete(storeName, key){
+  return new Promise((res, rej)=>{
+    const tx = db.transaction(storeName, 'readwrite');
+    const s = tx.objectStore(storeName);
+    const r = s.delete(key);
+    r.onsuccess = ()=> res();
+    r.onerror = ()=> rej(r.error);
+  });
+}
+
+/* ---------- Utilities ---------- */
+function uid(prefix='i'){ return prefix + Date.now() + Math.floor(Math.random()*999); }
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function formatDate(ts){ return new Date(ts).toLocaleString(); }
+function YouTubeID(url){
+  if(!url) return null;
+  const m = url.match(/(?:youtu\.be\/|v=|\/embed\/)([A-Za-z0-9_-]{6,11})/);
+  return m ? m[1] : null;
+}
+
+/* ---------- App state helpers ---------- */
+async function loadAll(){
+  const [items, folders, classes, trash] = await Promise.all([
+    idbGetAll('items'), idbGetAll('folders'), idbGetAll('classes'), idbGetAll('trash')
+  ]);
+  state.items = items || []; state.folders = folders || []; state.classes = classes || []; state.trash = trash || [];
+  renderAll();
+}
+async function saveItem(it){ await idbPut('items', it); await loadAll(); }
+async function deleteItemToTrash(id){
+  const it = await idbGet('items', id);
+  if(!it) return;
+  it._deletedAt = Date.now();
+  await idbPut('trash', it);
+  await idbDelete('items', id);
+  await loadAll();
+}
+async function restoreFromTrash(id){
+  const it = await idbGet('trash', id);
+  if(!it) return;
+  delete it._deletedAt;
+  await idbPut('items', it);
+  await idbDelete('trash', id);
+  await loadAll();
+}
+async function purgeTrash(){
+  const all = await idbGetAll('trash');
+  for(const t of all) await idbDelete('trash', t.id);
+  await loadAll();
+}
+
+/* ---------- Rendering ---------- */
+const itemsContainer = document.getElementById('itemsContainer');
+const classListEl = document.getElementById('classroomsList');
+const folderListEl = document.getElementById('foldersList');
+const trashListEl = document.getElementById('trashList');
+const countItems = document.getElementById('countItems');
+const countFolders = document.getElementById('countFolders');
+const countClasses = document.getElementById('countClasses');
+
+let state = {items:[],folders:[],classes:[],trash:[]};
+
+function renderAll(){
+  renderItems();
+  renderFolders();
+  renderClasses();
+  renderTrash();
+  countItems.textContent = state.items.length;
+  countFolders.textContent = state.folders.length;
+  countClasses.textContent = state.classes.length;
+}
+
+function renderItems(){
+  const q = (document.getElementById('globalSearch').value||'').toLowerCase();
+  const typeFilter = document.getElementById('typeFilter').value;
+  const view = document.getElementById('viewMode').value;
+  itemsContainer.classList.toggle('listView', view==='list');
+  itemsContainer.innerHTML = '';
+  let list = state.items.slice();
+  if(typeFilter) list = list.filter(i=>i.type===typeFilter);
+  if(q) list = list.filter(i=>{
+    const f = state.folders.find(x=>x.id===i.folderId)?.title||'';
+    const c = state.classes.find(x=>x.id===i.classId)?.title||'';
+    return (i.title||'').toLowerCase().includes(q) || (i.desc||'').toLowerCase().includes(q) || (i.link||'').toLowerCase().includes(q) || f.toLowerCase().includes(q) || c.toLowerCase().includes(q);
+  });
+  if(list.length===0){ itemsContainer.innerHTML = '<div class="small">No items.</div>'; return; }
+  list.forEach(it=>{
+    const card = document.createElement('div'); card.className='card';
+    let media = '';
+    if(it.type==='image' && it.imageBlobUrl) media = `<img src="${it.imageBlobUrl}" alt="${escapeHtml(it.title)}">`;
+    else if(it.type==='video' && it.thumbnail) media = `<img src="${it.thumbnail}" alt="${escapeHtml(it.title)}">`;
+    else media = `<img src="${it.imageSrc || 'https://via.placeholder.com/640x360?text=File'}" alt="${escapeHtml(it.title)}">`;
+
+    card.innerHTML = `
+      ${media}
+      <div style="margin-top:8px"><strong>${escapeHtml(it.title)}</strong></div>
+      <div class="meta">${escapeHtml((it.desc||'').slice(0,120))}</div>
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+        <button class="btn" data-act="open" data-id="${it.id}">Open</button>
+        <button class="btn ghost" data-act="move" data-id="${it.id}">Move</button>
+        <button class="btn ghost" data-act="link" data-id="${it.id}">Attach</button>
+        <button class="btn ghost" data-act="del" data-id="${it.id}">Delete</button>
+        ${it.folderId ? `<span class="tag">${escapeHtml(state.folders.find(f=>f.id===it.folderId)?.title||'')}</span>` : ''}
+        ${it.classId ? `<span class="tag">${escapeHtml(state.classes.find(c=>c.id===it.classId)?.title||'')}</span>` : ''}
+      </div>
+    `;
+    itemsContainer.appendChild(card);
+  });
+}
+
+function renderFolders(){
+  folderListEl.innerHTML = '';
+  if(state.folders.length===0){ folderListEl.innerHTML='<div class="small">No folders yet.</div>'; return; }
+  state.folders.forEach(f=>{
+    const c = document.createElement('div'); c.className='card';
+    c.innerHTML = `<strong>${escapeHtml(f.title)}</strong><div class="small">${escapeHtml(f.desc||'')}</div>
+      <div style="margin-top:8px;display:flex;gap:8px"><button class="btn" data-act="open-folder" data-id="${f.id}">Open</button><button class="btn ghost" data-act="del-folder" data-id="${f.id}">Delete</button></div>`;
+    folderListEl.appendChild(c);
+  });
+}
+
+function renderClasses(){
+  classListEl.innerHTML = '';
+  if(state.classes.length===0){ classListEl.innerHTML='<div class="small">No classrooms yet.</div>'; return; }
+  state.classes.forEach(cObj=>{
+    const c = document.createElement('div'); c.className='card';
+    c.innerHTML = `<strong>${escapeHtml(cObj.title)}</strong><div class="small">${escapeHtml(cObj.desc||'')}</div>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <button class="btn" data-act="open-class" data-id="${cObj.id}">Open</button>
+        <button class="btn ghost" data-act="new-assignment" data-id="${cObj.id}">+ Assignment</button>
+        <button class="btn ghost" data-act="del-class" data-id="${cObj.id}">Delete</button>
+      </div>`;
+    // show assignments
+    if(cObj.assignments && cObj.assignments.length){
+      const as = document.createElement('div'); as.style.marginTop='8px'; as.innerHTML = '<div class="small">Assignments:</div>';
+      cObj.assignments.forEach(a=> as.innerHTML += `<div class="small">• ${escapeHtml(a.title)} (due ${new Date(a.due).toLocaleDateString()})</div>`);
+      c.appendChild(as);
+    }
+    classListEl.appendChild(c);
+  });
+}
+
+function renderTrash(){
+  trashListEl.innerHTML = '';
+  if(state.trash.length===0){ trashListEl.innerHTML='<div class="small">Trash is empty.</div>'; return; }
+  state.trash.forEach(t=>{
+    const c = document.createElement('div'); c.className='card';
+    c.innerHTML = `<strong>${escapeHtml(t.title)}</strong><div class="small">Deleted: ${new Date(t._deletedAt).toLocaleString()}</div>
+      <div style="margin-top:8px;display:flex;gap:8px"><button class="btn" data-act="restore" data-id="${t.id}">Restore</button><button class="btn ghost" data-act="purge" data-id="${t.id}">Delete forever</button></div>`;
+    trashListEl.appendChild(c);
+  });
+}
+
+/* ---------- Actions wiring ---------- */
+document.querySelectorAll('.tab').forEach(t=> t.addEventListener('click', (e)=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  const tab = t.getAttribute('data-tab');
+  document.getElementById('drivePanel').style.display = tab==='drive' ? '' : 'none';
+  document.getElementById('classPanel').style.display = tab==='class' ? '' : 'none';
+  document.getElementById('foldersPanel').style.display = tab==='folders' ? '' : 'none';
+  document.getElementById('phoenixPanel').style.display = tab==='phoenix' ? '' : 'none';
+}));
+
+document.getElementById('viewMode').addEventListener('change', ()=> renderItems());
+document.getElementById('typeFilter').addEventListener('change', ()=> renderItems());
+document.getElementById('refreshBtn').addEventListener('click', ()=> loadAll());
+document.getElementById('toggleView').addEventListener('click', ()=>{
+  const vm = document.getElementById('viewMode');
+  vm.value = vm.value==='grid' ? 'list' : 'grid';
+  renderItems();
+});
+
+/* new folder / class */
+document.getElementById('newFolderBtn').addEventListener('click', async ()=>{
+  const title = prompt('Folder title:');
+  if(!title) return;
+  const desc = prompt('Description (optional):') || '';
+  const f = {id: uid('f'), title, desc, created: Date.now()};
+  await idbPut('folders', f);
+  await loadAll();
+});
+document.getElementById('newClassBtn').addEventListener('click', async ()=>{
+  const title = prompt('Classroom title:');
+  if(!title) return;
+  const desc = prompt('Description (optional):') || '';
+  const c = {id: uid('c'), title, desc, assignments: [], created: Date.now()};
+  await idbPut('classes', c);
+  await loadAll();
+});
+
+/* add/upload button */
+document.getElementById('addBtn').addEventListener('click', ()=> openAddModal());
+
+/* search */
+document.getElementById('searchBtn').addEventListener('click', ()=> renderItems());
+document.getElementById('globalSearch').addEventListener('input', ()=> renderItems());
+
+/* clear all (careful) */
+document.getElementById('clearAllBtn').addEventListener('click', async ()=>{
+  if(!confirm('Clear ALL items, folders, classes and trash? This cannot be undone unless you have a backup.')) return;
+  // clear stores
+  const stores = ['items','folders','classes','trash'];
+  for(const s of stores){
+    const tx = db.transaction(s,'readwrite');
+    const store = tx.objectStore(s);
+    store.clear();
+  }
+  await loadAll();
+});
+
+/* export / import */
+document.getElementById('exportBtn').addEventListener('click', async ()=>{
+  const full = {};
+  full.items = await idbGetAll('items');
+  full.folders = await idbGetAll('folders');
+  full.classes = await idbGetAll('classes');
+  full.trash = await idbGetAll('trash');
+  const blob = new Blob([JSON.stringify(full)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'cafelink_phoenix_backup.json'; a.click();
+  URL.revokeObjectURL(url);
+});
+document.getElementById('importBtn').addEventListener('click', ()=> document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', (e)=> {
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = async (ev)=> {
+    if(!confirm('Import will replace current DB. Continue?')) return;
+    try{
+      const obj = JSON.parse(ev.target.result);
+      // clear and write
+      const stores = ['items','folders','classes','trash'];
+      for(const s of stores){
+        const tx = db.transaction(s,'readwrite');
+        tx.objectStore(s).clear();
+        await new Promise(res=>tx.oncomplete=res);
+      }
+      for(const it of obj.items||[]) await idbPut('items', it);
+      for(const f of obj.folders||[]) await idbPut('folders', f);
+      for(const c of obj.classes||[]) await idbPut('classes', c);
+      for(const t of obj.trash||[]) await idbPut('trash', t);
+      await loadAll();
+      alert('Import complete');
+    }catch(err){ alert('Invalid file'); console.error(err); }
+  };
+  r.readAsText(f);
+});
+
+/* trash empty */
+document.getElementById('emptyTrashBtn').addEventListener('click', async ()=>{
+  if(!confirm('Empty trash permanently?')) return;
+  await purgeTrash();
+});
+
+/* delegated clicks for item actions */
+document.addEventListener('click', async (e)=>{
+  const act = e.target.getAttribute('data-act');
+  const id = e.target.getAttribute('data-id');
+  if(!act) return;
+  if(act==='open' && id){
+    const it = await idbGet('items', id); if(!it)return;
+    openPreview(it);
+  } else if(act==='move' && id){
+    // select folder to move
+    if(state.folders.length===0){ alert('Create a folder first'); return;}
+    const opt = state.folders.map(f=> `${f.id}|${f.title}`).join('\n');
+    const pick = prompt('Choose folder id to move to (paste from list)\n'+opt);
+    if(!pick) return;
+    const fid = pick.split('|')[0];
+    it = await idbGet('items', id); if(!it) return;
+    it.folderId = fid; await idbPut('items', it); await loadAll(); alert('Moved.');
+  } else if(act==='link' && id){
+    // attach to class
+    if(state.classes.length===0){ alert('Create a classroom first'); return; }
+    const opt = state.classes.map(c=> `${c.id}|${c.title}`).join('\n');
+    const pick = prompt('Choose classroom id to attach (paste from list)\n'+opt);
+    if(!pick) return;
+    const cid = pick.split('|')[0];
+    it = await idbGet('items', id); if(!it) return;
+    it.classId = cid; await idbPut('items', it); await loadAll(); alert('Attached to classroom.');
+  } else if(act==='del' && id){
+    if(!confirm('Move this item to Phoenix (Trash)?')) return;
+    await deleteItemToTrash(id);
+  } else if(act==='open-folder' && id){
+    document.getElementById('globalSearch').value = state.folders.find(f=>f.id===id)?.title || '';
+    renderItems();
+  } else if(act==='del-folder' && id){
+    if(!confirm('Delete folder? Items inside will remain but lose folder tag.')) return;
+    // remove folder and unset folderId
+    const items = await idbGetAll('items');
+    for(const it of items){ if(it.folderId===id){ it.folderId=null; await idbPut('items', it); } }
+    await idbDelete('folders', id); await loadAll();
+  } else if(act==='open-class' && id){
+    // open class view modal
+    const cls = await idbGet('classes', id);
+    openClassModal(cls);
+  } else if(act==='new-assignment' && id){
+    createAssignmentModal(id);
+  } else if(act==='del-class' && id){
+    if(!confirm('Delete classroom? Assignments and links remain but class tag removed from items.')) return;
+    const items = await idbGetAll('items');
+    for(const it of items){ if(it.classId===id){ it.classId=null; await idbPut('items', it); } }
+    await idbDelete('classes', id); await loadAll();
+  } else if(act==='restore' && id){
+    await restoreFromTrash(id);
+  } else if(act==='purge' && id){
+    if(!confirm('Delete permanently?')) return;
+    await idbDelete('trash', id); await loadAll();
+  }
+});
+
+/* ---------- Adding new item modal / upload ---------- */
+async function openAddModal(){
+  const folderOptions = state.folders.map(f=>`<option value="${f.id}">${escapeHtml(f.title)}</option>`).join('');
+  const classOptions = state.classes.map(c=>`<option value="${c.id}">${escapeHtml(c.title)}</option>`).join('');
+  showModal(`
+    <h3>Upload / Add Item</h3>
+    <div class="form-row">
+      <input id="addTitle" class="input" placeholder="Title (required)">
+      <select id="addType" class="input"><option value="image">Image</option><option value="video">Video</option><option value="link">Link</option><option value="note">Note</option></select>
+    </div>
+    <div style="margin-top:8px"><textarea id="addDesc" class="input" placeholder="Description (optional)"></textarea></div>
+    <div class="form-row" style="margin-top:8px">
+      <input id="addLink" class="input" placeholder="Link or YouTube URL (if applicable)">
+      <input id="addImageUrl" class="input" placeholder="Image URL (optional)">
+    </div>
+    <div style="margin-top:8px" class="form-row">
+      <input id="fileUpload" type="file" class="input-file" accept="image/*,video/*">
+    </div>
+    <div class="form-row" style="margin-top:8px">
+      <select id="addFolder" class="input"><option value="">(none)</option>${folderOptions}</select>
+      <select id="addClass" class="input"><option value="">(none)</option>${classOptions}</select>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+      <button id="saveAdd" class="btn">Save</button><button id="cancelAdd" class="btn ghost">Cancel</button>
+    </div>
+  `);
+  document.getElementById('cancelAdd').addEventListener('click', hideModal);
+  let uploaded = null;
+  document.getElementById('fileUpload').addEventListener('change', (ev)=>{
+    const f = ev.target.files[0];
+    if(!f) return;
+    const r = new FileReader();
+    r.onload = function(e){ uploaded = e.target.result; alert('File loaded (data URL) — saving stores it locally.'); };
+    r.readAsDataURL(f);
+  });
+  document.getElementById('saveAdd').addEventListener('click', async ()=>{
+    const title = (document.getElementById('addTitle').value||'').trim();
+    if(!title){ alert('Title required'); return; }
+    const type = document.getElementById('addType').value;
+    const desc = document.getElementById('addDesc').value;
+    const link = document.getElementById('addLink').value.trim() || null;
+    const imageUrl = document.getElementById('addImageUrl').value.trim() || null;
+    const folderId = document.getElementById('addFolder').value || null;
+    const classId = document.getElementById('addClass').value || null;
+    const it = { id: uid('it'), title, desc, type, created: Date.now(), folderId, classId };
+
+    if(type==='image'){
+      if(uploaded) it.imageBlob = uploaded;
+      else if(imageUrl) it.imageSrc = imageUrl;
+      else if(link) it.imageSrc = link;
+    } else if(type==='video'){
+      if(uploaded) it.videoBlob = uploaded;
+      else if(link) it.videoSrc = link;
+      // generate thumbnail for youtube if possible
+      if(it.videoSrc && (it.videoSrc.includes('youtube.com')||it.videoSrc.includes('youtu.be'))){
+        const id = YouTubeID(it.videoSrc);
+        if(id) it.thumbnail = `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
+      }
+    } else if(type==='link'){
+      it.link = link;
+      if(imageUrl) it.imageSrc = imageUrl;
+    } else if(type==='note'){
+      // nothing else
+    }
+
+    // if large blob, store as data URL (for demo). Save in IndexedDB.
+    // Also create blob URL for preview
+    if(it.imageBlob) it.imageBlobUrl = it.imageBlob;
+    if(it.videoBlob) { /* no preview thumbnail, use placeholder */ }
+
+    await idbPut('items', it);
+    hideModal();
+    await loadAll();
+  });
+}
+
+/* ---------- Modal helpers ---------- */
+const modalRoot = document.getElementById('modalRoot');
+function showModal(innerHtml){
+  modalRoot.innerHTML = `<div class="modal"><div style="display:flex;justify-content:space-between;align-items:center"><div></div><button id="closeModalBtn" class="btn ghost">X</button></div><div>${innerHtml}</div></div>`;
+  modalRoot.style.display='flex';
+  document.getElementById('closeModalBtn').addEventListener('click', hideModal);
+}
+function hideModal(){ modalRoot.style.display='none'; modalRoot.innerHTML=''; }
+
+/* ---------- Item preview & class modal ---------- */
+function openPreview(it){
+  let mediaHtml = '';
+  if(it.type==='image'){
+    const src = it.imageBlobUrl || it.imageSrc || 'https://via.placeholder.com/640x360?text=Image';
+    mediaHtml = `<img src="${src}" style="width:100%;max-height:420px;object-fit:contain;border-radius:8px">`;
+  } else if(it.type==='video'){
+    if(it.videoSrc && YouTubeID(it.videoSrc)){
+      mediaHtml = `<iframe width="100%" height="420" src="https://www.youtube.com/embed/${YouTubeID(it.videoSrc)}" frameborder="0" allowfullscreen></iframe>`;
+    } else if(it.videoBlob){
+      mediaHtml = `<video controls style="width:100%"><source src="${it.videoBlob}"></video>`;
+    } else {
+      mediaHtml = `<div class="small">No playable preview. <a href="${it.videoSrc}" target="_blank">Open link</a></div>`;
+    }
+  } else if(it.type==='link'){
+    mediaHtml = `<div style="padding:12px"><a href="${it.link}" target="_blank" class="btn">Open Link</a></div>`;
+  } else mediaHtml = '';
+
+  showModal(`
+    <h3>${escapeHtml(it.title)}</h3>
+    ${mediaHtml}
+    <p class="small">${escapeHtml(it.desc || '')}</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <button class="btn" id="downloadBtn">Download</button>
+      <button class="btn ghost" id="closePreviewBtn">Close</button>
+    </div>
+  `);
+  document.getElementById('closePreviewBtn').addEventListener('click', hideModal);
+  document.getElementById('downloadBtn').addEventListener('click', ()=> {
+    // download blob if blob url exists, or link
+    if(it.imageBlobUrl){
+      const a = document.createElement('a'); a.href = it.imageBlobUrl; a.download = it.title; a.click();
+    } else if(it.videoBlob){
+      const a = document.createElement('a'); a.href = it.videoBlob; a.download = it.title; a.click();
+    } else if(it.link){ window.open(it.link, '_blank'); }
+    else alert('No downloadable file for this item.');
+  });
+}
+
+/* ---------- Classroom: assignments & submissions ---------- */
+async function createAssignmentModal(classId){
+  showModal(`
+    <h3>Create Assignment</h3>
+    <div class="form-row"><input id="asgTitle" class="input" placeholder="Assignment title"></div>
+    <div style="margin-top:8px"><textarea id="asgDesc" class="input" placeholder="Description (optional)"></textarea></div>
+    <div style="margin-top:8px" class="form-row">
+      <label class="small">Due date</label><input id="asgDue" type="date" class="input">
+    </div>
+    <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px"><button id="saveAsg" class="btn">Create</button><button id="cancelAsg" class="btn ghost">Cancel</button></div>
+  `);
+  document.getElementById('cancelAsg').addEventListener('click', hideModal);
+  document.getElementById('saveAsg').addEventListener('click', async ()=>{
+    const title = (document.getElementById('asgTitle').value||'').trim();
+    if(!title){ alert('Title required'); return; }
+    const desc = document.getElementById('asgDesc').value || '';
+    const due = new Date(document.getElementById('asgDue').value || Date.now()).getTime();
+    const cls = await idbGet('classes', classId);
+    if(!cls.assignments) cls.assignments = [];
+    cls.assignments.unshift({id:uid('a'), title, desc, due, submissions:[]});
+    await idbPut('classes', cls);
+    hideModal();
+    await loadAll();
+  });
+}
+
+async function openClassModal(cls){
+  // show assignments and allow viewing submissions and submitting file
+  const asHtml = (cls.assignments || []).map(a=>`<div style="border-top:1px dashed rgba(0,0,0,0.05);padding-top:8px;margin-top:8px"><strong>${escapeHtml(a.title)}</strong><div class="small">${escapeHtml(a.desc||'')}</div><div class="small">Due: ${new Date(a.due).toLocaleString()}</div>
+    <div style="margin-top:8px;display:flex;gap:8px"><button class="btn" data-act="viewAsg" data-aid="${a.id}" data-cid="${cls.id}">View</button><button class="btn ghost" data-act="submitAsg" data-aid="${a.id}" data-cid="${cls.id}">Submit</button></div></div>`).join('');
+  showModal(`<h3>${escapeHtml(cls.title)}</h3><div class="small">${escapeHtml(cls.desc||'')}</div><div style="margin-top:12px">${asHtml || '<div class="small">No assignments yet.</div>'}</div><div style="display:flex;justify-content:flex-end;margin-top:12px"><button id="closeCls" class="btn ghost">Close</button></div>`);
+  document.getElementById('closeCls').addEventListener('click', hideModal);
+}
+
+/* delegation for class assignment buttons in modal */
+document.addEventListener('click', async (e)=>{
+  const act = e.target.getAttribute('data-act');
+  if(!act) return;
+  if(act==='viewAsg'){
+    const aid = e.target.getAttribute('data-aid'), cid = e.target.getAttribute('data-cid');
+    const cls = await idbGet('classes', cid);
+    const asg = (cls.assignments||[]).find(x=>x.id===aid);
+    if(!asg) return;
+    // show submissions
+    const subs = asg.submissions||[];
+    const html = `<h3>${escapeHtml(asg.title)}</h3><div class="small">${escapeHtml(asg.desc||'')}</div><div style="margin-top:8px">${subs.length? subs.map(s=>`<div class="small">• ${escapeHtml(s.name)} — ${new Date(s.at).toLocaleString()}</div>`).join('') : '<div class="small">No submissions yet.</div>'}</div><div style="display:flex;justify-content:flex-end;margin-top:12px"><button id="closeSub" class="btn">Close</button></div>`;
+    showModal(html);
+    document.getElementById('closeSub').addEventListener('click', hideModal);
+  } else if(act==='submitAsg'){
+    const aid = e.target.getAttribute('data-aid'), cid = e.target.getAttribute('data-cid');
+    // open file upload and link to assignment
+    showModal(`<h3>Submit to Assignment</h3><div class="form-row"><input id="subFile" type="file" class="input-file"></div><div style="margin-top:8px;display:flex;justify-content:flex-end;gap:8px"><button id="doSub" class="btn">Upload & Submit</button><button id="cancelSub" class="btn ghost">Cancel</button></div>`);
+    document.getElementById('cancelSub').addEventListener('click', hideModal);
+    document.getElementById('doSub').addEventListener('click', async ()=>{
+      const f = document.getElementById('subFile').files[0];
+      if(!f) { alert('Choose a file'); return; }
+      const r = new FileReader();
+      r.onload = async (ev)=>{
+        // store as new item and attach to submission
+        const newItem = {id: uid('it'), title: f.name, desc: 'Submission', type: f.type.startsWith('image')? 'image' : 'file', created: Date.now(), classId: cid};
+        const dataUrl = ev.target.result;
+        if(f.type.startsWith('image')) newItem.imageBlob = dataUrl; else newItem.fileBlob = dataUrl;
+        await idbPut('items', newItem);
+        // add submission to assignment
+        const cls = await idbGet('classes', cid);
+        const asg = cls.assignments.find(x=>x.id===aid);
+        if(!asg.submissions) asg.submissions = [];
+        asg.submissions.unshift({id:uid('s'), name:f.name, itemId:newItem.id, at:Date.now()});
+        await idbPut('classes', cls);
+        hideModal(); await loadAll(); alert('Submitted.'); 
+      };
+      r.readAsDataURL(f);
+    });
+  }
+});
+
+/* ---------- Trash restore & purge wired in delegated listener above ---------- */
+
+/* ---------- Init DB & load ---------- */
+(async function init(){
+  await openDB();
+  await loadAll();
+  // small UX: shortcut n => new upload
+  document.addEventListener('keydown', (e)=>{ if(e.key==='n' && !e.ctrlKey && !e.metaKey) openAddModal(); });
+})();
+</script>
+</body>
+</html>
